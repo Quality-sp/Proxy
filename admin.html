@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        :root {
+            --rose-50: #fff1f4;
+            --rose-100: #ffe4ea;
+            --rose-200: #fecdd7;
+            --rose-300: #fda4b4;
+            --rose-400: #fb7093;
+            --rose-500: #f43f72;
+            --rose-600: #e11d5a;
+            --pink-soft: #fff0f5;
+            --mauve-light: #e8b4ce;
+            --text-dark: #2d1a26;
+            --text-mid: #7a4d64;
+            --text-light: #b07a96;
+            --white: #ffffff;
+            --border: #f5c2d7;
+            --shadow-sm: 0 2px 8px rgba(244,63,114,0.08);
+            --shadow-lg: 0 20px 60px rgba(200,60,100,0.18);
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family:'DM Sans',sans-serif;
+            background:linear-gradient(160deg,#fff0f5 0%,#fce7f0 50%,#ffe4ea 100%);
+            min-height:100vh; color:var(--text-dark);
+        }
+        body::before {
+            content:''; position:fixed; top:-100px; right:-100px;
+            width:400px; height:400px;
+            background:radial-gradient(circle,rgba(251,112,147,0.2) 0%,transparent 70%);
+            pointer-events:none; z-index:0;
+        }
+
+        .screen { display:none; position:relative; z-index:1; }
+        .screen.active { display:block; }
+
+        /* LOGIN */
+        #loginScreen {
+            min-height:100vh; display:none;
+            flex-direction:column; align-items:center; justify-content:center; padding:24px;
+        }
+        #loginScreen.active { display:flex; }
+
+        .login-icon {
+            width:72px; height:72px;
+            background:linear-gradient(135deg,var(--rose-400),var(--rose-600));
+            border-radius:22px; display:flex; align-items:center; justify-content:center;
+            margin-bottom:20px; box-shadow:0 12px 32px rgba(244,63,114,0.4);
+            animation:floatIcon 3s ease-in-out infinite; color:white;
+        }
+        @keyframes floatIcon { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+
+        .login-title { font-size:28px; font-weight:700; color:var(--text-dark); margin-bottom:6px; }
+        .login-sub { font-size:14px; color:var(--text-light); margin-bottom:36px; }
+
+        .login-card {
+            width:100%; max-width:380px; background:var(--white);
+            border:1.5px solid var(--border); border-radius:24px; padding:28px;
+            box-shadow:var(--shadow-lg);
+        }
+        .field-label {
+            font-size:10px; font-weight:700; text-transform:uppercase;
+            letter-spacing:1.2px; color:var(--text-light); margin-bottom:8px; display:block;
+        }
+        .form-input {
+            width:100%; padding:13px 16px;
+            background:var(--pink-soft); border:1.5px solid var(--border);
+            border-radius:12px; color:var(--text-dark);
+            font-size:14px; font-family:'DM Sans',sans-serif;
+            transition:all 0.2s; margin-bottom:16px;
+        }
+        .form-input:focus {
+            outline:none; border-color:var(--rose-400);
+            background:var(--white); box-shadow:0 0 0 4px rgba(244,63,114,0.1);
+        }
+        .form-input::placeholder { color:var(--mauve-light); }
+
+        .btn-primary {
+            width:100%; padding:14px;
+            background:linear-gradient(135deg,var(--rose-500),var(--rose-600));
+            color:white; border:none; border-radius:12px;
+            font-size:15px; font-weight:700; font-family:'DM Sans',sans-serif;
+            cursor:pointer; transition:all 0.2s;
+            box-shadow:0 6px 20px rgba(244,63,114,0.35);
+            display:flex; align-items:center; justify-content:center; gap:8px;
+        }
+        .btn-primary:hover { transform:translateY(-2px); }
+        .btn-primary:disabled { opacity:0.7; cursor:not-allowed; transform:none; }
+
+        .spinner {
+            width:16px; height:16px;
+            border:2px solid rgba(255,255,255,0.4);
+            border-top-color:white; border-radius:50%;
+            animation:spin 0.7s linear infinite;
+        }
+        @keyframes spin { to{transform:rotate(360deg)} }
+
+        /* MAIN */
+        #mainScreen { min-height:100vh; padding:0 0 48px; }
+
+        .top-bar {
+            display:flex; align-items:center; justify-content:space-between;
+            padding:18px 20px 0; margin-bottom:22px;
+        }
+        .top-bar-brand { display:flex; align-items:center; gap:9px; font-size:14px; font-weight:700; }
+        .brand-icon {
+            width:30px; height:30px;
+            background:linear-gradient(135deg,var(--rose-400),var(--rose-600));
+            border-radius:9px; display:flex; align-items:center; justify-content:center;
+            color:white; box-shadow:0 4px 10px rgba(244,63,114,0.3);
+        }
+        .btn-signout {
+            display:flex; align-items:center; gap:6px; padding:8px 14px;
+            background:transparent; border:1.5px solid var(--border); border-radius:10px;
+            cursor:pointer; font-size:12px; font-weight:600; color:var(--text-light);
+            font-family:'DM Sans',sans-serif; transition:all 0.2s;
+        }
+        .btn-signout:hover { border-color:var(--rose-400); color:var(--rose-600); }
+
+        .page-header { padding:0 20px; margin-bottom:20px; }
+        .page-title { font-size:24px; font-weight:700; letter-spacing:-0.4px; }
+        .page-sub { font-size:13px; color:var(--text-light); margin-top:3px; }
+
+        /* Stats */
+        .stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:0 20px; margin-bottom:20px; }
+        .stat-card {
+            background:var(--white); border:1.5px solid var(--border);
+            border-radius:18px; padding:18px 16px; box-shadow:var(--shadow-sm);
+        }
+        .stat-label {
+            font-size:10px; font-weight:700; text-transform:uppercase;
+            letter-spacing:1px; color:var(--text-light);
+            display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;
+        }
+        .stat-icon { color:var(--text-light); opacity:0.6; display:flex; }
+        .stat-value { font-size:28px; font-weight:700; color:var(--text-dark); }
+        .stat-value.green { color:#16a34a; }
+        .stat-value.red { color:var(--rose-600); }
+
+        /* Create Key Card */
+        .card {
+            background:var(--white); border:1.5px solid var(--border);
+            border-radius:20px; padding:22px 20px; margin:0 20px 20px;
+            box-shadow:var(--shadow-sm);
+        }
+        .card-title {
+            font-size:15px; font-weight:700; color:var(--text-dark);
+            display:flex; align-items:center; gap:8px; margin-bottom:16px;
+        }
+        .card-title-dot { width:6px; height:6px; border-radius:50%; background:var(--rose-400); }
+
+        .form-row { display:flex; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+        .form-col { flex:1; min-width:120px; }
+        .form-col label { font-size:11px; font-weight:600; color:var(--text-light); text-transform:uppercase; letter-spacing:0.8px; display:block; margin-bottom:6px; }
+        .form-col input {
+            width:100%; padding:11px 14px;
+            background:var(--pink-soft); border:1.5px solid var(--border);
+            border-radius:12px; color:var(--text-dark);
+            font-size:13px; font-family:'DM Mono',monospace;
+            transition:all 0.2s;
+        }
+        .form-col input:focus {
+            outline:none; border-color:var(--rose-400);
+            background:var(--white); box-shadow:0 0 0 3px rgba(244,63,114,0.1);
+        }
+        .form-col input::placeholder { color:var(--mauve-light); font-family:'DM Sans',sans-serif; }
+
+        .btn-create {
+            width:100%; padding:13px;
+            background:linear-gradient(135deg,var(--rose-500),var(--rose-600));
+            color:white; border:none; border-radius:12px;
+            font-size:14px; font-weight:700; font-family:'DM Sans',sans-serif;
+            cursor:pointer; transition:all 0.2s;
+            box-shadow:0 4px 14px rgba(244,63,114,0.3);
+            display:flex; align-items:center; justify-content:center; gap:8px;
+        }
+        .btn-create:hover { transform:translateY(-2px); }
+
+        /* Key List */
+        .key-list { display:flex; flex-direction:column; }
+        .key-item {
+            padding:16px 18px; border-bottom:1.5px solid var(--border);
+            transition:background 0.2s;
+        }
+        .key-item:last-child { border-bottom:none; }
+        .key-item:hover { background:var(--pink-soft); }
+
+        .key-item-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+        .key-value { font-family:'DM Mono',monospace; font-size:15px; font-weight:600; color:var(--text-dark); }
+        .key-badges { display:flex; align-items:center; gap:6px; }
+        .badge {
+            padding:3px 10px; border-radius:20px;
+            font-size:11px; font-weight:700;
+        }
+        .badge.active { background:rgba(22,163,74,0.1); color:#16a34a; }
+        .badge.expired { background:rgba(244,63,114,0.1); color:var(--rose-600); }
+
+        .key-meta { display:flex; gap:16px; flex-wrap:wrap; }
+        .key-meta-item { font-size:12px; color:var(--text-light); display:flex; align-items:center; gap:4px; }
+        .key-meta-icon { display:flex; }
+
+        .key-actions { display:flex; gap:6px; margin-top:12px; }
+        .btn-edit {
+            flex:1; padding:8px;
+            background:var(--pink-soft); border:1.5px solid var(--border);
+            border-radius:10px; cursor:pointer;
+            font-size:12px; font-weight:600; color:var(--text-mid);
+            font-family:'DM Sans',sans-serif; transition:all 0.2s;
+            display:flex; align-items:center; justify-content:center; gap:6px;
+        }
+        .btn-edit:hover { border-color:var(--rose-300); color:var(--rose-600); }
+        .btn-del {
+            padding:8px 14px;
+            background:transparent; border:1.5px solid var(--border);
+            border-radius:10px; cursor:pointer;
+            font-size:12px; color:var(--text-light);
+            font-family:'DM Sans',sans-serif; transition:all 0.2s;
+            display:flex; align-items:center;
+        }
+        .btn-del:hover { background:rgba(220,38,38,0.08); color:#dc2626; border-color:rgba(220,38,38,0.3); }
+
+        /* Edit Modal */
+        .modal-overlay {
+            position:fixed; inset:0;
+            background:rgba(45,26,38,0.5); backdrop-filter:blur(4px);
+            display:flex; align-items:center; justify-content:center;
+            z-index:999; padding:20px;
+        }
+        .modal-overlay.hidden { display:none; }
+        .modal {
+            background:var(--white); border-radius:20px; padding:28px;
+            width:100%; max-width:380px; box-shadow:var(--shadow-lg);
+        }
+        .modal-title { font-size:18px; font-weight:700; margin-bottom:20px; }
+        .modal-actions { display:flex; gap:10px; margin-top:20px; }
+        .btn-cancel {
+            flex:1; padding:12px;
+            background:var(--pink-soft); border:1.5px solid var(--border);
+            border-radius:12px; cursor:pointer;
+            font-size:14px; font-weight:600; color:var(--text-mid);
+            font-family:'DM Sans',sans-serif; transition:all 0.2s;
+        }
+        .btn-save {
+            flex:1; padding:12px;
+            background:linear-gradient(135deg,var(--rose-500),var(--rose-600));
+            color:white; border:none; border-radius:12px;
+            font-size:14px; font-weight:700; font-family:'DM Sans',sans-serif;
+            cursor:pointer; transition:all 0.2s;
+        }
+
+        .empty-state { padding:40px 20px; text-align:center; color:var(--text-light); }
+        .empty-icon { display:flex; justify-content:center; margin-bottom:12px; opacity:0.35; }
+
+        .toast-wrap { position:fixed; top:20px; left:50%; transform:translateX(-50%); z-index:9999; pointer-events:none; display:flex; flex-direction:column; gap:8px; align-items:center; }
+        .toast { padding:11px 18px; border-radius:14px; font-size:13px; font-weight:600; font-family:'DM Sans',sans-serif; display:flex; align-items:center; gap:8px; border:1.5px solid; backdrop-filter:blur(12px); animation:toastIn 0.35s cubic-bezier(0.22,1,0.36,1); white-space:nowrap; }
+        @keyframes toastIn { from{opacity:0;transform:translateY(-8px) scale(0.96)} to{opacity:1;transform:translateY(0) scale(1)} }
+        .toast.success { background:rgba(240,253,244,0.96); color:#15803d; border-color:#86efac; }
+        .toast.error   { background:rgba(254,242,242,0.96); color:#dc2626; border-color:#fca5a5; }
+        .toast.info    { background:rgba(255,240,245,0.96); color:var(--rose-600); border-color:var(--rose-200); }
+
+        .hidden { display:none !important; }
+        .section-eyebrow { padding:4px 20px 8px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; color:var(--text-light); }
+    </style>
+</head>
+<body>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<div class="modal-overlay hidden" id="editModal">
+    <div class="modal">
+        <div class="modal-title">Edit Key</div>
+        <input type="hidden" id="editKeyId">
+        <div class="form-col" style="margin-bottom:12px;">
+            <label>Expiry Date</label>
+            <input type="datetime-local" id="editExpiry" class="form-input" style="margin-bottom:0">
+        </div>
+        <div class="form-col">
+            <label>IP Limit</label>
+            <input type="number" id="editIpLimit" class="form-input" min="1" max="100" style="margin-bottom:0">
+        </div>
+        <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+            <button class="btn-save" onclick="saveEdit()">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- LOGIN -->
+<div id="loginScreen" class="screen active">
+    <div class="login-icon"><i data-lucide="shield-check" width="32" height="32"></i></div>
+    <div class="login-title">Admin Panel</div>
+    <div class="login-sub">Enter admin password to continue</div>
+    <div class="login-card">
+        <label class="field-label">Admin Password</label>
+        <input class="form-input" type="password" id="adminPassInput" placeholder="••••••••">
+        <button class="btn-primary" id="loginBtn" onclick="handleLogin()">
+            <span id="loginText">Sign in</span>
+            <i data-lucide="arrow-right" width="16" height="16" id="loginArrow"></i>
+            <div class="spinner hidden" id="loginSpinner"></div>
+        </button>
+    </div>
+</div>
+
+<!-- MAIN -->
+<div id="mainScreen" class="screen">
+    <div class="top-bar">
+        <div class="top-bar-brand">
+            <div class="brand-icon"><i data-lucide="shield-check" width="16" height="16"></i></div>
+            Admin Panel
+        </div>
+        <button class="btn-signout" onclick="handleLogout()">
+            <i data-lucide="log-out" width="13" height="13"></i> Sign out
+        </button>
+    </div>
+
+    <div class="page-header">
+        <div class="page-title">Key Management</div>
+        <div class="page-sub">Create, edit, and monitor all proxy keys</div>
+    </div>
+
+    <div class="stat-grid">
+        <div class="stat-card">
+            <div class="stat-label">TOTAL KEYS <span class="stat-icon"><i data-lucide="key" width="13" height="13"></i></span></div>
+            <div class="stat-value" id="statTotal">—</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">ACTIVE <span class="stat-icon"><i data-lucide="activity" width="13" height="13"></i></span></div>
+            <div class="stat-value green" id="statActive">—</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">EXPIRED <span class="stat-icon"><i data-lucide="timer-off" width="13" height="13"></i></span></div>
+            <div class="stat-value red" id="statExpired">—</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">TOTAL IPS <span class="stat-icon"><i data-lucide="globe" width="13" height="13"></i></span></div>
+            <div class="stat-value" id="statIPs">—</div>
+        </div>
+    </div>
+
+    <!-- Create Key -->
+    <div class="card">
+        <div class="card-title"><div class="card-title-dot"></div> Create New Key</div>
+        <div class="form-row">
+            <div class="form-col">
+                <label>Key Value</label>
+                <input type="text" id="newKey" placeholder="e.g. abc123">
+            </div>
+            <div class="form-col">
+                <label>IP Limit</label>
+                <input type="number" id="newIpLimit" value="1" min="1" max="100">
+            </div>
+        </div>
+        <div class="form-col" style="margin-bottom:14px;">
+            <label>Expiry Date</label>
+            <input type="datetime-local" id="newExpiry">
+        </div>
+        <button class="btn-create" onclick="createKey()">
+            <i data-lucide="plus" width="16" height="16"></i> Create Key
+        </button>
+    </div>
+
+    <!-- Key List -->
+    <div class="section-eyebrow">ALL KEYS</div>
+    <div class="card" style="padding:0; overflow:hidden;">
+        <div class="key-list" id="keyList">
+            <div class="empty-state">
+                <div class="empty-icon"><i data-lucide="inbox" width="36" height="36"></i></div>
+                <p>No keys yet</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const API_BASE = 'https://proxy-production-fb55.up.railway.app';
+    let adminPass = '';
+
+    function getHeaders() {
+        return { 'Content-Type':'application/json', 'X-Admin-Password': adminPass };
+    }
+
+    async function handleLogin() {
+        const pass = document.getElementById('adminPassInput').value.trim();
+        if (!pass) { showToast('Enter password', 'error'); return; }
+
+        const btn = document.getElementById('loginBtn');
+        const txt = document.getElementById('loginText');
+        const arrow = document.getElementById('loginArrow');
+        const spin = document.getElementById('loginSpinner');
+        btn.disabled = true; txt.textContent = 'Signing in…';
+        arrow.classList.add('hidden'); spin.classList.remove('hidden');
+
+        try {
+            adminPass = pass;
+            const res = await fetch(`${API_BASE}/admin/keys`, { headers: getHeaders() });
+            if (res.status === 401) {
+                showToast('Wrong password', 'error');
+                adminPass = '';
+            } else {
+                localStorage.setItem('adminPass', pass);
+                showScreen('mainScreen');
+                showToast('Welcome back!', 'success');
+            }
+        } catch {
+            showToast('Cannot connect to server', 'error');
+        }
+
+        btn.disabled = false; txt.textContent = 'Sign in';
+        arrow.classList.remove('hidden'); spin.classList.add('hidden');
+    }
+
+    function handleLogout() {
+        localStorage.removeItem('adminPass');
+        adminPass = '';
+        showScreen('loginScreen');
+        document.getElementById('adminPassInput').value = '';
+    }
+
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        if (id === 'mainScreen') loadKeys();
+    }
+
+    async function loadKeys() {
+        try {
+            const res = await fetch(`${API_BASE}/admin/keys`, { headers: getHeaders() });
+            const keys = await res.json();
+            renderKeys(keys);
+            updateStats(keys);
+        } catch {
+            showToast('Failed to load keys', 'error');
+        }
+    }
+
+    function updateStats(keys) {
+        const active = keys.filter(k => !k.expired).length;
+        const expired = keys.filter(k => k.expired).length;
+        const totalIPs = keys.reduce((s, k) => s + (k.ip_count || 0), 0);
+        document.getElementById('statTotal').textContent = keys.length;
+        document.getElementById('statActive').textContent = active;
+        document.getElementById('statExpired').textContent = expired;
+        document.getElementById('statIPs').textContent = totalIPs;
+    }
+
+    function renderKeys(keys) {
+        const list = document.getElementById('keyList');
+        if (!keys.length) {
+            list.innerHTML = `<div class="empty-state"><div class="empty-icon"><i data-lucide="inbox" width="36" height="36"></i></div><p>No keys yet</p></div>`;
+            lucide.createIcons(); return;
+        }
+
+        list.innerHTML = keys.map(k => `
+            <div class="key-item">
+                <div class="key-item-top">
+                    <div class="key-value">${k.key}</div>
+                    <div class="key-badges">
+                        <span class="badge ${k.expired ? 'expired' : 'active'}">${k.expired ? 'Expired' : 'Active'}</span>
+                    </div>
+                </div>
+                <div class="key-meta">
+                    <div class="key-meta-item">
+                        <span class="key-meta-icon"><i data-lucide="timer" width="12" height="12"></i></span>
+                        ${k.expires_at}
+                    </div>
+                    <div class="key-meta-item">
+                        <span class="key-meta-icon"><i data-lucide="globe" width="12" height="12"></i></span>
+                        ${k.ip_count}/${k.ip_limit} IPs
+                    </div>
+                    <div class="key-meta-item">
+                        <span class="key-meta-icon"><i data-lucide="calendar" width="12" height="12"></i></span>
+                        Created ${k.created_at.slice(0,10)}
+                    </div>
+                </div>
+                <div class="key-actions">
+                    <button class="btn-edit" onclick="openEdit(${k.id}, '${k.expires_at}', ${k.ip_limit})">
+                        <i data-lucide="pencil" width="13" height="13"></i> Edit
+                    </button>
+                    <button class="btn-del" onclick="deleteKey(${k.id}, '${k.key}')">
+                        <i data-lucide="trash-2" width="13" height="13"></i>
+                    </button>
+                </div>
+            </div>
+        `).join('');
+        lucide.createIcons();
+    }
+
+    async function createKey() {
+        const key = document.getElementById('newKey').value.trim();
+        const expiry = document.getElementById('newExpiry').value;
+        const ipLimit = document.getElementById('newIpLimit').value;
+
+        if (!key) { showToast('Enter key value', 'error'); return; }
+        if (!expiry) { showToast('Select expiry date', 'error'); return; }
+
+        const expiryFormatted = expiry.replace('T', ' ') + ':00';
+
+        try {
+            const res = await fetch(`${API_BASE}/admin/keys`, {
+                method:'POST', headers: getHeaders(),
+                body: JSON.stringify({ key, expires_at: expiryFormatted, ip_limit: parseInt(ipLimit) })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast('Key created!', 'success');
+                document.getElementById('newKey').value = '';
+                loadKeys();
+            } else {
+                showToast(data.message || 'Failed', 'error');
+            }
+        } catch {
+            showToast('Cannot connect', 'error');
+        }
+    }
+
+    async function deleteKey(id, keyVal) {
+        if (!confirm(`Delete key "${keyVal}"?\nAll registered IPs will be removed too.`)) return;
+        try {
+            await fetch(`${API_BASE}/admin/keys/${id}`, { method:'DELETE', headers: getHeaders() });
+            showToast('Key deleted', 'info');
+            loadKeys();
+        } catch {
+            showToast('Failed to delete', 'error');
+        }
+    }
+
+    function openEdit(id, expiresAt, ipLimit) {
+        document.getElementById('editKeyId').value = id;
+        document.getElementById('editExpiry').value = expiresAt.replace(' ', 'T');
+        document.getElementById('editIpLimit').value = ipLimit;
+        document.getElementById('editModal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+        document.getElementById('editModal').classList.add('hidden');
+    }
+
+    async function saveEdit() {
+        const id = document.getElementById('editKeyId').value;
+        const expiry = document.getElementById('editExpiry').value.replace('T', ' ') + ':00';
+        const ipLimit = document.getElementById('editIpLimit').value;
+
+        try {
+            const res = await fetch(`${API_BASE}/admin/keys/${id}`, {
+                method:'PUT', headers: getHeaders(),
+                body: JSON.stringify({ expires_at: expiry, ip_limit: parseInt(ipLimit) })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast('Key updated!', 'success');
+                closeModal();
+                loadKeys();
+            }
+        } catch {
+            showToast('Failed to update', 'error');
+        }
+    }
+
+    function showToast(msg, type = 'info') {
+        const icons = { success:'check', error:'x', info:'info' };
+        const t = document.createElement('div');
+        t.className = `toast ${type}`;
+        t.innerHTML = `<i data-lucide="${icons[type]}" width="14" height="14"></i> ${msg}`;
+        document.getElementById('toastWrap').appendChild(t);
+        lucide.createIcons();
+        setTimeout(() => {
+            t.style.transition = 'all 0.25s ease';
+            t.style.opacity = '0';
+            setTimeout(() => t.remove(), 250);
+        }, 2800);
+    }
+
+    document.addEventListener('keypress', e => {
+        if (e.key === 'Enter' && document.getElementById('loginScreen').classList.contains('active')) handleLogin();
+    });
+
+    const saved = localStorage.getItem('adminPass');
+    if (saved) { adminPass = saved; showScreen('mainScreen'); }
+
+    window.addEventListener('load', () => lucide.createIcons());
+</script>
+</body>
+</html>
