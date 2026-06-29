@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import sqlite3, datetime
 
@@ -28,6 +28,10 @@ def init_db():
     db.commit()
 
 init_db()
+
+@app.route('/')
+def index():
+    return send_file('whitelist-manager.html')
 
 @app.route('/auth', methods=['POST'])
 def auth():
