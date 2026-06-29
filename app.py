@@ -19,16 +19,15 @@ def init_db():
         duration_days INTEGER NOT NULL DEFAULT 1,
         expires_at TIMESTAMP,
         ip_limit INTEGER DEFAULT 1,
-        created_at TIMESTAMP NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
         activated_at TIMESTAMP
     )''')
     cur.execute('''CREATE TABLE IF NOT EXISTS ips (
         id SERIAL PRIMARY KEY,
         key TEXT NOT NULL,
         ip TEXT NOT NULL,
-        created_at TIMESTAMP NOT NULL
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
     )''')
-    cur.execute("INSERT INTO keys (key, duration_days, ip_limit, created_at) VALUES ('12345', 30, 1, NOW()) ON CONFLICT (key) DO NOTHING")
     db.commit()
     cur.close()
     db.close()
@@ -37,6 +36,13 @@ init_db()
 
 def check_admin(req):
     return req.headers.get('X-Admin-Password') == ADMIN_PASSWORD
+
+def format_row(row):
+    d = dict(row)
+    for k in ['expires_at','activated_at','created_at']:
+        if k in d and d[k]:
+            d[k] = d[k].strftime('%Y-%m-%d %H:%M:%S')
+    return d
 
 @app.route('/')
 def index():
@@ -48,48 +54,65 @@ def admin():
 
 @app.route('/auth', methods=['POST'])
 def auth():
-    key = request.json.get('key')
+    data = request.json
+    if not data:
+        return jsonify({'success': False, 'message': 'Invalid request'}), 400
+    key = data.get('key', '').strip()
+    if not key:
+        return jsonify({'success': False, 'message': 'Key required'}), 400
+
     db = get_db()
     cur = db.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("SELECT * FROM keys WHERE key=%s", (key,))
     row = cur.fetchone()
+
     if not row:
         cur.close(); db.close()
         return jsonify({'success': False, 'message': 'Invalid key'}), 401
+
     now = datetime.datetime.now()
+
     if not row['activated_at']:
-        expires = now + datetime.timedelta(days=row['duration_days'])
-        cur.execute("UPDATE keys SET activated_at=%s, expires_at=%s WHERE key=%s", (now, expires, key))
+        expires = now + datetime.timedelta(days=int(row['duration_days']))
+        cur.execute("UPDATE keys SET activated_at=%s, expires_at=%s WHERE key=%s",
+                    (now, expires, key))
         db.commit()
         cur.execute("SELECT * FROM keys WHERE key=%s", (key,))
         row = cur.fetchone()
+
     if row['expires_at'] and now > row['expires_at']:
         cur.close(); db.close()
         return jsonify({'success': False, 'message': 'Key expired'}), 401
+
     result = {
         'success': True,
         'expires_at': row['expires_at'].strftime('%Y-%m-%d %H:%M:%S'),
         'ip_limit': row['ip_limit'],
-        'activated_at': row['activated_at'].strftime('%Y-%m-%d %H:%M:%S') if row['activated_at'] else None
+        'activated_at': row['activated_at'].strftime('%Y-%m-%d %H:%M:%S')
     }
     cur.close(); db.close()
     return jsonify(result)
 
 @app.route('/ips', methods=['GET'])
 def get_ips():
-    key = request.args.get('key')
+    key = request.args.get('key', '').strip()
     db = get_db()
     cur = db.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT * FROM ips WHERE key=%s", (key,))
+    cur.execute("SELECT * FROM ips WHERE key=%s ORDER BY id DESC", (key,))
     rows = cur.fetchall()
     cur.close(); db.close()
-    return jsonify([dict(r) for r in rows])
+    result = []
+    for r in rows:
+        d = dict(r)
+        d['created_at'] = d['created_at'].strftime('%Y-%m-%d %H:%M:%S')
+        result.append(d)
+    return jsonify(result)
 
 @app.route('/ips', methods=['POST'])
 def add_ip():
     data = request.json
-    key = data.get('key')
-    ip = data.get('ip')
+    key = data.get('key', '').strip()
+    ip = data.get('ip', '').strip()
     db = get_db()
     cur = db.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("SELECT * FROM keys WHERE key=%s", (key,))
@@ -110,14 +133,14 @@ def add_ip():
     if cur.fetchone():
         cur.close(); db.close()
         return jsonify({'success': False, 'message': 'IP already registered'}), 400
-    cur.execute("INSERT INTO ips (key, ip, created_at) VALUES (%s, %s, %s)", (key, ip, now))
+    cur.execute("INSERT INTO ips (key, ip, created_at) VALUES (%s,%s,%s)", (key, ip, now))
     db.commit()
     cur.close(); db.close()
     return jsonify({'success': True})
 
 @app.route('/ips/<int:ip_id>', methods=['DELETE'])
 def delete_ip(ip_id):
-    key = request.args.get('key')
+    key = request.args.get('key', '').strip()
     db = get_db()
     cur = db.cursor()
     cur.execute("DELETE FROM ips WHERE id=%s AND key=%s", (ip_id, key))
@@ -131,18 +154,22 @@ def admin_get_keys():
         return jsonify({'success': False, 'message': 'Unauthorized'}), 401
     db = get_db()
     cur = db.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT k.*, COUNT(i.id) as ip_count FROM keys k LEFT JOIN ips i ON k.key = i.key GROUP BY k.id ORDER BY k.id DESC")
+    cur.execute("""
+        SELECT k.*, COUNT(i.id) as ip_count
+        FROM keys k
+        LEFT JOIN ips i ON k.key = i.key
+        GROUP BY k.id
+        ORDER BY k.id DESC
+    """)
     keys = cur.fetchall()
     cur.close(); db.close()
     now = datetime.datetime.now()
     result = []
     for k in keys:
-        d = dict(k)
+        d = format_row(dict(k))
         d['expired'] = bool(k['expires_at'] and now > k['expires_at'])
         d['activated'] = bool(k['activated_at'])
-        d['expires_at'] = k['expires_at'].strftime('%Y-%m-%d %H:%M:%S') if k['expires_at'] else None
-        d['activated_at'] = k['activated_at'].strftime('%Y-%m-%d %H:%M:%S') if k['activated_at'] else None
-        d['created_at'] = k['created_at'].strftime('%Y-%m-%d %H:%M:%S')
+        d['ip_count'] = k['ip_count']
         result.append(d)
     return jsonify(result)
 
@@ -151,18 +178,22 @@ def admin_create_key():
     if not check_admin(request):
         return jsonify({'success': False, 'message': 'Unauthorized'}), 401
     data = request.json
-    key = data.get('key')
-    duration_days = data.get('duration_days', 1)
-    ip_limit = data.get('ip_limit', 1)
+    key = data.get('key', '').strip()
+    duration_days = int(data.get('duration_days', 1))
+    ip_limit = int(data.get('ip_limit', 1))
+    if not key:
+        return jsonify({'success': False, 'message': 'Key required'}), 400
     db = get_db()
     cur = db.cursor()
     try:
-        cur.execute("INSERT INTO keys (key, duration_days, ip_limit, created_at) VALUES (%s, %s, %s, NOW())",
-                   (key, duration_days, ip_limit))
+        cur.execute("""
+            INSERT INTO keys (key, duration_days, ip_limit, created_at)
+            VALUES (%s, %s, %s, NOW())
+        """, (key, duration_days, ip_limit))
         db.commit()
         cur.close(); db.close()
         return jsonify({'success': True})
-    except:
+    except Exception as e:
         db.rollback()
         cur.close(); db.close()
         return jsonify({'success': False, 'message': 'Key already exists'}), 400
@@ -187,10 +218,12 @@ def admin_update_key(key_id):
     if not check_admin(request):
         return jsonify({'success': False, 'message': 'Unauthorized'}), 401
     data = request.json
+    duration_days = int(data.get('duration_days', 1))
+    ip_limit = int(data.get('ip_limit', 1))
     db = get_db()
     cur = db.cursor()
     cur.execute("UPDATE keys SET duration_days=%s, ip_limit=%s WHERE id=%s",
-               (data.get('duration_days'), data.get('ip_limit'), key_id))
+                (duration_days, ip_limit, key_id))
     db.commit()
     cur.close(); db.close()
     return jsonify({'success': True})
